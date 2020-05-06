@@ -1,7 +1,11 @@
+#ifndef COMPRESS_GATHER_H
+#define COMPRESS_GATHER_H
+
 #include <iostream>
 #include <sstream>
 #include <vector>
 
+namespace compress {
 // type include int and int64, applies to all integers.
 template<typename T>
 std::stringstream integerCompress(const std::vector<T> &integer_set) {
@@ -27,7 +31,12 @@ std::stringstream integerCompress(const std::vector<T> &integer_set) {
             integer >> 7;
             cligit += 7;
         }
-        temp_integer = integer & remainder;
+
+        if (cligit > integer_length) {
+            temp_integer = integer & remainder;
+        } else {
+            temp_integer = integer & 0x7f;
+        }
         compress << temp_integer;
     }
     return compress;
@@ -38,6 +47,7 @@ std::vector<T> integerUncompress(std::stringstream &compress) {
     std::vector<T> integer_set;
     unsigned char temp_integer;
     bool first_integer = true;
+    
     T integer;
     T cligit = sizeof(T) - 1;
     cligit = 1 << cligit;
@@ -73,3 +83,4 @@ std::vector<T> integerUncompress(std::stringstream &compress) {
     }
     return integer_set;
 }
+#endif
