@@ -45,10 +45,7 @@ std::stringstream standardIntegerCompress(const std::vector<int> &integer_set) {
     for (auto integer : integer_set) {
         // In order to be compatible with negative Numbers, All integers have to do a loop to the left
         if (integer < 0) {
-            integer = (~(integer - 1)) << 1 | 0x1;
-        }
-        else {
-            integer = integer << 1;
+            integer = ~(integer - 1);
         }
         unsigned_integer_set.push_back(integer);
     }
@@ -64,10 +61,7 @@ std::stringstream longIntegerCompress(const std::vector<int64_t> &integer_set) {
     for (auto integer : integer_set) {
         // In order to be compatible with negative Numbers, All integers have to do a loop to the left
         if (integer < 0) {
-            integer = (~(integer - 1)) << 1 | 0x1;
-        }
-        else {
-            integer = integer << 1;
+            integer = ~(integer - 1);
         }
         unsigned_integer_set.push_back(integer);
     }
@@ -98,8 +92,9 @@ std::stringstream integerCompress(const std::vector<T> &integer_set) {
     std::stringstream compress;
     unsigned char temp_integer;
     T integer;
+    int int_bit = sizeof(integer) * SEEK_LENGTH::SEEK_LENGTH_WRITE - 1;
     for (int i = 0; i < integer_set.size(); i++) {
-        integer = integer_set[i];
+        integer = (integer_set[i] << 1) | (integer_set[i] >> int_bit);
         while (integer > 0x7f) {
             temp_integer = 0x80;
             temp_integer += integer & 0x7f;
@@ -127,12 +122,7 @@ std::vector<T> integerUncompress(std::stringstream &compress) {
     // A restore operation for a compression shift
     auto seekInteger = [&]() {
         seekLength(remainder_bit);
-        if (integer & 0x1 == 1) {
-            integer = (~(integer - 1) >> 1) | (1 << (integer_length - 1));
-        }
-        else {
-            integer = integer >> 1;
-        }
+        integer = (integer >> 1) | (integer << (integer_length - 1));
     };
     
     while (compress >> temp_value) {
@@ -327,9 +317,7 @@ std::stringstream floatLossyCompress(const std::vector<float> &float_set, const 
     for (auto float_value : float_set) {
         memcpy(&temp_int, &float_value, sizeof(float));
         int index_bit = (temp_int >> SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT) & 0xff - 0x7f;
-        temp_int = temp_int & 0x807fffff;
-        int seek_bit = (temp_int >> (SEEK_LENGTH::SEEK_LENGTH_FLOAT - 1)) | 
-            (temp_int >> (index_bit + SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT - bin_hex[accuracy] + 1));
+        uint32_t seek_bit = (temp_int & 0x807fffff) >> (index_bit + SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT - bin_hex[accuracy] + 1);
         integer_set.push_back(seek_bit);
     }
     return integerCompress(integer_set);
@@ -351,9 +339,9 @@ std::vector<float> floatLossyUncompress(const std::stringstream &compress, const
     };
     for (auto temp_int : integer_set) {
         int value_bit = countIndex(temp_int);
-        temp_int = ((temp_int >> (SEEK_LENGTH::SEEK_LENGTH_FLOAT - 1)) << (SEEK_LENGTH::SEEK_LENGTH_FLOAT - 1)) | 
-                   ((0x7f + value_bit - SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT - 1) << SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT) | 
-                   temp_int << (SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT + 1 - value_bit);
+        temp_int =  ((temp_int >> (SEEK_LENGTH::SEEK_LENGTH_FLOAT - 1)) << (SEEK_LENGTH::SEEK_LENGTH_FLOAT - 1)) | 
+                    ((0x7f + value_bit - SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT - 1) << SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT) | 
+                   ((temp_int << (SEEK_LENGTH::SEEK_LENGTH_FLOAT_END_COUNT + 1 - value_bit) & 0x007fffff);
         memcpy(&temp_float, &temp_int, sizeof(float));
         float_set.push_back(temp_float);
     }
